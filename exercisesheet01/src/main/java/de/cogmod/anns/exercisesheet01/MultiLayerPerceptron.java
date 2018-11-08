@@ -118,6 +118,7 @@ public class MultiLayerPerceptron {
             //
         }
         //
+        //
         this.weightsnum = sumweights;
     }
     
@@ -191,6 +192,42 @@ public class MultiLayerPerceptron {
     public void backwardPass(final double[] target) {
         //
         assert(target.length == this.act[this.act.length - 1].length);
+        
+        for (int i = 0; i < target.length; i++) {
+        	this.delta[this.layersnum - 1][i]=this.act[this.act.length - 1][i] -target[i];
+        	this.delta[this.layersnum - 1][i]*=sigmoidDx(this.net[this.act.length - 1][i]);
+        } 
+       
+        for (int l= this.layersnum-2; l > 0 ; l--) {
+            final int layersize = this.layer[l];
+            final int prolayersize = this.layer[l+1];
+            		
+            		
+            for (int j = 0; j < layersize; j++) {
+                double sum=0;
+            	for (int i = 0; i < prolayersize; i++) {
+                    sum +=this.weights[l][j][i]*this.delta[l+1][i];
+                }
+            	double dh=sigmoidDx(this.net[l][j])*sum;
+            	this.delta[l][j]=dh;
+            }
+            
+        }
+        
+        for (int l = 1; l < this.layersnum; l++) {
+            final int layersize    = this.layer[l];
+            final int prelayersize = this.layer[l - 1];
+            for (int j = 0; j < layersize; j++) {
+                for (int i = 0; i < prelayersize; i++) {
+                	this.dweights[l][i][j]=this.act[l - 1][i]*this.delta[l][j];
+                }
+            }
+        }
+        
+        
+        
+        
+        
         //
         // inject the output/target discrepancy into this.bwbuffer. Note that
         // this.bwbuffer functions analogously to this.net but is used to
@@ -213,6 +250,17 @@ public class MultiLayerPerceptron {
         // this.dweights !!!!
         // ...
 
+    }
+    public void updateWeights(double lr){
+    	for (int l = 1; l < this.layersnum; l++) {
+            final int layersize    = this.layer[l];
+            final int prelayersize = this.layer[l - 1];
+            for (int j = 0; j < layersize; j++) {
+                for (int i = 0; i <= prelayersize; i++) {
+                	this.weights[l][i][j] += -lr* this.dweights[l][i][j];
+                }
+            }          
+        }
     }
     
     /**
@@ -278,6 +326,7 @@ public class MultiLayerPerceptron {
      * @param listener Listener to observe the training progress.
      * @return The final epoch error.
      */
+    
     public double trainStochastic(
         final Random rnd, 
         final double[][] input, 
@@ -314,17 +363,25 @@ public class MultiLayerPerceptron {
             Tools.shuffle(indices, rnd);
             //
             double errorsum = 0.0;
+            for (int ind:indices) {
+            	double []o=forwardPass(input[ind]);
+            	errorsum+=RMSE(o, target[ind]);
+            	backwardPass(target[ind]);
+            	updateWeights(learningrate);
+            }
+				//for and backward
+			
             //
             // train all samples in online manner, i.e. iterate over all samples
             // while considering the shuffled order and update the weights 
             // immediately after each sample
             //
-
+            //
             // ...
             
             //
             error = errorsum / (double)(input.length);
-            if (listener != null) listener.afterEpoch(i + 1, error);
+            if (listener != null)listener.afterEpoch(i + 1, error);
         }
         //
         return error;
