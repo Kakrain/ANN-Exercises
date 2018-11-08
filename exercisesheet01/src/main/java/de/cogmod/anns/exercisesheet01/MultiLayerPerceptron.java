@@ -26,6 +26,8 @@ public class MultiLayerPerceptron {
     private double[][][] weights;
     private boolean[] usebias;
     private double[][][] dweights;
+    private double[][][] dweightsTminus;
+    
     
     private static int[] join(final int i1, final int i2, final int ...in) {
         final int[] result = new int[2 + in.length];
@@ -80,9 +82,11 @@ public class MultiLayerPerceptron {
         this.usebias  = new boolean[this.layersnum];
         this.weights  = new double[this.layersnum][][];
         this.dweights = new double[this.layersnum][][];
+        this.dweightsTminus = new double[this.layersnum][][];
         //
         this.weights[0]  = null;
         this.dweights[0] = null;
+        this.dweightsTminus[0] = null;
         //
         int sumweights = 0;
         //
@@ -112,6 +116,8 @@ public class MultiLayerPerceptron {
                 //
                 this.weights[l]  = new double[this.layer[l - 1] + 1][this.layer[l]];
                 this.dweights[l] = new double[this.layer[l - 1] + 1][this.layer[l]];
+                this.dweightsTminus[l] = new double[this.layer[l - 1] + 1][this.layer[l]];
+                
                 //
                 sumweights += (this.layer[l - 1] + 1) * (this.layer[l]);
             }
@@ -121,7 +127,16 @@ public class MultiLayerPerceptron {
         //
         this.weightsnum = sumweights;
     }
-    
+    private void copyWeights(){
+    	for (int i = 1; i < this.dweights.length; i++) {
+    		for (int j = 0; j < this.dweights[i].length; j++) {
+    			for (int k = 0; k < this.dweights[i][j].length; k++) {
+    				this.dweightsTminus[i][j][k]=this.dweights[i][j][k];
+    			}
+			}
+			
+		} 
+    }
     private static double sigmoid(final double x) {
         return 1.0 / (1.0 + Math.exp(-x));
     }
@@ -206,13 +221,17 @@ public class MultiLayerPerceptron {
             for (int j = 0; j < layersize; j++) {
                 double sum=0;
             	for (int i = 0; i < prolayersize; i++) {
-                    sum +=this.weights[l][j][i]*this.delta[l+1][i];
+            		//System.out.println(this.weights[l].length);
+            		//System.out.println(layersize);
+                    //sum +=this.weights[l][j][i]*this.delta[l+1][i];
+                    sum +=this.weights[l][i][j]*this.delta[l+1][i];
                 }
             	double dh=sigmoidDx(this.net[l][j])*sum;
             	this.delta[l][j]=dh;
             }
             
         }
+        this.copyWeights();
         
         for (int l = 1; l < this.layersnum; l++) {
             final int layersize    = this.layer[l];
@@ -251,13 +270,13 @@ public class MultiLayerPerceptron {
         // ...
 
     }
-    public void updateWeights(double lr){
+    public void updateWeights(double lr,double m){
     	for (int l = 1; l < this.layersnum; l++) {
             final int layersize    = this.layer[l];
             final int prelayersize = this.layer[l - 1];
             for (int j = 0; j < layersize; j++) {
                 for (int i = 0; i <= prelayersize; i++) {
-                	this.weights[l][i][j] += -lr* this.dweights[l][i][j];
+                	this.weights[l][i][j] += (-m*lr*dweightsTminus[l][i][j]) -(lr* this.dweights[l][i][j]);
                 }
             }          
         }
@@ -367,7 +386,7 @@ public class MultiLayerPerceptron {
             	double []o=forwardPass(input[ind]);
             	errorsum+=RMSE(o, target[ind]);
             	backwardPass(target[ind]);
-            	updateWeights(learningrate);
+            	updateWeights(learningrate,momentumrate);
             }
 				//for and backward
 			
